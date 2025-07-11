@@ -48,6 +48,7 @@ const testConnection = async () => {
   } catch (error) {
     console.error('Supabase connection error:', error)
   }
+}
 
 // Database types
 export interface Driver {
