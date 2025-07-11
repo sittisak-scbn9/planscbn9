@@ -11,25 +11,43 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
-    detectSessionInUrl: false
+    detectSessionInUrl: false,
+    flowType: 'pkce'
   },
   global: {
     headers: {
       'X-Client-Info': 'transport-planner@1.0.0'
     }
+  },
+  db: {
+    schema: 'public'
+  },
+  realtime: {
+    params: {
+      eventsPerSecond: 10
+    }
   }
 })
 
-// Test connection on initialization
-supabase.from('users').select('count', { count: 'exact', head: true }).then(
-  ({ error }) => {
+// Test connection on initialization with timeout
+const testConnection = async () => {
+  try {
+    console.log('Testing Supabase connection...')
+    const { error } = await Promise.race([
+      supabase.from('users').select('count', { count: 'exact', head: true }),
+      new Promise<any>((_, reject) => 
+        setTimeout(() => reject(new Error('Connection timeout')), 3000)
+      )
+    ])
+    
     if (error) {
       console.error('Supabase connection test failed:', error)
     } else {
       console.log('Supabase connection successful')
     }
+  } catch (error) {
+    console.error('Supabase connection error:', error)
   }
-)
 
 // Database types
 export interface Driver {

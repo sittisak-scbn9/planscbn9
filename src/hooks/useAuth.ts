@@ -11,41 +11,55 @@ export function useAuth() {
 
   useEffect(() => {
     let mounted = true
-    let timeoutId: NodeJS.Timeout
     
-    // Set a timeout to prevent infinite loading
-    timeoutId = setTimeout(() => {
-      if (mounted && loading) {
-        console.warn('Auth loading timeout - proceeding without authentication')
-        setLoading(false)
-        setError('Authentication timeout - please refresh the page')
+    // Initialize auth immediately without waiting for session
+    const initAuth = async () => {
+      try {
+        console.log('Initializing authentication...')
+        
+        // Try to get session with shorter timeout
+        const { data: { session }, error: sessionError } = await Promise.race([
+          supabase.auth.getSession(),
+          new Promise<any>((_, reject) => 
+            setTimeout(() => reject(new Error('Session timeout')), 5000)
+          )
+        ])
+
+        if (!mounted) return
+
+        if (sessionError) {
+          console.error('Session error:', sessionError)
+          // Don't treat session errors as fatal - just proceed to login
+          setLoading(false)
+          return
+        }
+
+        console.log('Session retrieved:', session ? 'Found' : 'None')
+        setSession(session)
+        
+        if (session?.user) {
+          console.log('User found in session:', session.user.email)
+          await fetchUserProfile(session.user.id)
+        } else {
+          console.log('No session found, showing login')
+          setLoading(false)
+        }
+      } catch (error: any) {
+        console.error('Auth initialization error:', error)
+        if (mounted) {
+          // Don't show error for timeout - just proceed to login
+          if (error.message === 'Session timeout') {
+            console.log('Session timeout - proceeding to login')
+            setLoading(false)
+          } else {
+            setError('Failed to initialize authentication')
+            setLoading(false)
+          }
+        }
       }
-    }, 10000) // 10 second timeout
-    
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      if (!mounted) return
-      
-      if (error) {
-        console.error('Error getting session:', error)
-        setError(error.message)
-        setLoading(false)
-        return
-      }
-      
-      setSession(session)
-      if (session?.user) {
-        fetchUserProfile(session.user.id)
-      } else {
-        // No session - proceed to login form
-        setLoading(false)
-      }
-    }).catch((error) => {
-      if (!mounted) return
-      console.error('Error in getSession:', error)
-      setError('Failed to initialize authentication')
-      setLoading(false)
-    })
+    }
+
+    initAuth()
 
     // Listen for auth changes
     const {
@@ -56,6 +70,8 @@ export function useAuth() {
       console.log('Auth state changed:', event, session?.user?.email)
       
       setSession(session)
+      setError(null) // Clear any previous errors
+      
       if (session?.user) {
         await fetchUserProfile(session.user.id)
       } else {
@@ -66,7 +82,6 @@ export function useAuth() {
 
     return () => {
       mounted = false
-      clearTimeout(timeoutId)
       subscription.unsubscribe()
     }
   }, [])
@@ -89,7 +104,7 @@ export function useAuth() {
       if (error) {
         console.error('Error fetching user profile:', error)
         
-        // If user doesn't exist in users table, try to create a basic profile
+        // If user doesn't exist in users table, create a basic profile
         if (error.code === 'PGRST116') {
           console.log('User not found in users table, creating new profile...')
           const { data: authUser } = await supabase.auth.getUser()
@@ -113,7 +128,7 @@ export function useAuth() {
               setUser(createdUser)
             } else {
               console.error('Error creating user profile:', createError)
-              // Proceed without user profile for now
+              // Create a temporary user object to allow access
               setUser({
                 id: authUser.user.id,
                 user_code: 'TEMP',
@@ -128,9 +143,22 @@ export function useAuth() {
             }
           }
         } else {
-          // Other database errors
-          console.error('Database error:', error)
-          setError('Failed to load user profile')
+          // Other database errors - create temporary user to allow access
+          console.error('Database error, creating temporary user:', error)
+          const { data: authUser } = await supabase.auth.getUser()
+          if (authUser.user) {
+            setUser({
+              id: authUser.user.id,
+              user_code: 'TEMP',
+              email: authUser.user.email || '',
+              name: authUser.user.user_metadata?.name || 'User',
+              role: 'Viewer',
+              status: 'Active',
+              preferences: {},
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            } as User)
+          }
         }
       } else {
         console.log('User profile loaded:', data)
@@ -138,7 +166,21 @@ export function useAuth() {
       }
     } catch (error) {
       console.error('Error fetching user profile:', error)
-      setError('Failed to load user profile')
+      // Don't block login for profile errors
+      const { data: authUser } = await supabase.auth.getUser()
+      if (authUser.user) {
+        setUser({
+          id: authUser.user.id,
+          user_code: 'TEMP',
+          email: authUser.user.email || '',
+          name: authUser.user.user_metadata?.name || 'User',
+          role: 'Viewer',
+          status: 'Active',
+          preferences: {},
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        } as User)
+      }
     } finally {
       setLoading(false)
     }
@@ -146,13 +188,20 @@ export function useAuth() {
 
   const signIn = async (email: string, password: string) => {
     setError(null)
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
+    setLoading(true)
+    
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
 
-    if (error) throw error
-    return data
+      if (error) throw error
+      return data
+    } catch (error) {
+      setLoading(false)
+      throw error
+    }
   }
 
   const signUp = async (email: string, password: string, name: string) => {

@@ -40,9 +40,17 @@ function AppContent() {
         <div className="text-center">
           <LoadingSpinner size="lg" />
           <p className="mt-4 text-gray-600">Loading application...</p>
-          <p className="mt-2 text-sm text-gray-500">
-            If this takes too long, please refresh the page
-          </p>
+          <div className="mt-4 space-y-2">
+            <p className="text-sm text-gray-500">
+              Connecting to database...
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Refresh Page
+            </button>
+          </div>
         </div>
       </div>
     )

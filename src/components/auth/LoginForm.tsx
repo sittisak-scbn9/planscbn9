@@ -118,10 +118,14 @@ export function LoginForm() {
         </form>
 
         <div className="mt-6 text-center text-sm text-gray-600">
-          Don't have an account?{' '}
-          <button className="text-blue-600 hover:text-blue-800 font-medium">
-            Contact your administrator
-          </button>
+          <div className="space-y-2">
+            <p>Don't have an account? Contact your administrator</p>
+            <div className="text-xs text-gray-500">
+              <p>Demo credentials:</p>
+              <p>Email: admin@example.com</p>
+              <p>Password: password123</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
