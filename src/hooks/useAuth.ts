@@ -17,19 +17,13 @@ export function useAuth() {
       try {
         console.log('Initializing authentication...')
         
-        // Try to get session with shorter timeout
-        const { data: { session }, error: sessionError } = await Promise.race([
-          supabase.auth.getSession(),
-          new Promise<any>((_, reject) => 
-            setTimeout(() => reject(new Error('Session timeout')), 5000)
-          )
-        ])
+        // Get session without timeout to prevent premature failures
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
 
         if (!mounted) return
 
         if (sessionError) {
           console.error('Session error:', sessionError)
-          // Don't treat session errors as fatal - just proceed to login
           setLoading(false)
           return
         }
@@ -47,14 +41,7 @@ export function useAuth() {
       } catch (error: any) {
         console.error('Auth initialization error:', error)
         if (mounted) {
-          // Don't show error for timeout - just proceed to login
-          if (error.message === 'Session timeout') {
-            console.log('Session timeout - proceeding to login')
-            setLoading(false)
-          } else {
-            setError('Failed to initialize authentication')
-            setLoading(false)
-          }
+          setLoading(false)
         }
       }
     }
