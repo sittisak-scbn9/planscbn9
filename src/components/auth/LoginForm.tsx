@@ -29,13 +29,20 @@ export function LoginForm() {
   const onSubmit = async (data: LoginFormData) => {
     try {
       setIsLoading(true)
+      console.log('Attempting to sign in with:', data.email)
       const result = await signIn(data.email, data.password)
       if (result.user) {
         toast.success('Successfully signed in')
       }
     } catch (error: any) {
       console.error('Sign in error:', error)
-      toast.error(error.message || 'Failed to sign in. Please check your credentials.')
+      if (error.message?.includes('Invalid login credentials')) {
+        toast.error('Invalid email or password. Please check your credentials.')
+      } else if (error.message?.includes('Email not confirmed')) {
+        toast.error('Please check your email and confirm your account.')
+      } else {
+        toast.error(error.message || 'Failed to sign in. Please try again.')
+      }
     } finally {
       setIsLoading(false)
     }

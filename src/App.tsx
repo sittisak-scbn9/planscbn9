@@ -31,7 +31,7 @@ const queryClient = new QueryClient({
 })
 
 function AppContent() {
-  const { user, loading } = useAuth()
+  const { user, loading, error } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   if (loading) {
@@ -40,6 +40,30 @@ function AppContent() {
         <div className="text-center">
           <LoadingSpinner size="lg" />
           <p className="mt-4 text-gray-600">Loading application...</p>
+          <p className="mt-2 text-sm text-gray-500">
+            If this takes too long, please refresh the page
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center max-w-md mx-4">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+            <h2 className="text-lg font-semibold text-red-800 mb-2">
+              Connection Error
+            </h2>
+            <p className="text-red-600 mb-4">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Refresh Page
+            </button>
+          </div>
         </div>
       </div>
     )
